@@ -162,7 +162,8 @@ function NoAuthSyncTab() {
 
 export function ContentTabSync( { selectedSite }: { selectedSite: SiteDetails } ) {
 	const { __ } = useI18n();
-	const { connectedSites, connectSite, disconnectSite, syncSites, isFetching } = useSyncSites();
+	const { connectedSites, connectSite, disconnectSite, syncSites, isFetching, refetchSites } =
+		useSyncSites();
 	const [ isSyncSitesSelectorOpen, setIsSyncSitesSelectorOpen ] = useState( false );
 	const { isAuthenticated } = useAuth();
 	if ( ! isAuthenticated ) {
@@ -200,6 +201,7 @@ export function ContentTabSync( { selectedSite }: { selectedSite: SiteDetails } 
 					isLoading={ isFetching }
 					onRequestClose={ () => setIsSyncSitesSelectorOpen( false ) }
 					syncSites={ syncSites }
+					onInitialRender={ refetchSites }
 					onConnect={ ( siteId ) => {
 						const newConnectedSite = syncSites.find( ( site ) => site.id === siteId );
 						if ( ! newConnectedSite ) {

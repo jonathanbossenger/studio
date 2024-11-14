@@ -12,7 +12,7 @@ export const useSiteSyncManagement = ( {
 	setConnectedSites: React.Dispatch< React.SetStateAction< SyncSite[] > >;
 } ) => {
 	const { isAuthenticated } = useAuth();
-	const { syncSites, isFetching } = useFetchWpComSites( connectedSites );
+	const { syncSites, isFetching, refetchSites } = useFetchWpComSites( connectedSites );
 	const { selectedSite } = useSiteDetails();
 	const localSiteId = selectedSite?.id;
 
@@ -90,5 +90,6 @@ export const useSiteSyncManagement = ( {
 		disconnectSite,
 		syncSites,
 		isFetching,
+		refetchSites,
 	} as const;
 };
