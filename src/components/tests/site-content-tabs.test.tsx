@@ -29,6 +29,12 @@ jest.mock( '../../lib/app-globals', () => ( {
 	...jest.requireActual( '../../lib/app-globals' ),
 	getAppGlobals: jest.fn().mockReturnValue( { locale: ' en' } ),
 } ) );
+jest.mock( '../../lib/get-ipc-api', () => ( {
+	...jest.requireActual( '../../lib/get-ipc-api' ),
+	getIpcApi: jest.fn().mockReturnValue( {
+		getConnectedWpcomSites: jest.fn().mockResolvedValue( [] ),
+	} ),
+} ) );
 
 ( useFeatureFlags as jest.Mock ).mockReturnValue( {} );
 
