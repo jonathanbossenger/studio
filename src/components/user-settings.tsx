@@ -33,7 +33,7 @@ const UserInfo = ( {
 			<div className="flex w-full items-center gap-3">
 				<Button
 					onClick={ () => getIpcApi().openURL( WPCOM_PROFILE_URL ) }
-					aria-label={ __( 'Profile link' ) }
+					aria-label={ __( 'Edit profile' ) }
 					variant="icon"
 				>
 					<Gravatar detailedDefaultImage size={ 32 } isBlack />
