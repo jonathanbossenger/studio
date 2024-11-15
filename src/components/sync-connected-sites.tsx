@@ -11,9 +11,8 @@ import { getIpcApi } from '../lib/get-ipc-api';
 import { ArrowIcon } from './arrow-icon';
 import { Badge } from './badge';
 import Button from './button';
-import { CheckIcon } from './check-icon';
-import { ErrorIcon } from './error-icon';
 import ProgressBar from './progress-bar';
+import { SyncPullPushClear } from './sync-pull-push-clear';
 import Tooltip from './tooltip';
 import { WordPressLogoCircle } from './wordpress-logo-circle';
 
@@ -36,8 +35,33 @@ export function SyncConnectedSites( {
 	selectedSite: SiteDetails;
 } ) {
 	const { __ } = useI18n();
-	const { pullSite, clearPullState, getPullState, isAnySitePulling } = useSyncSites();
+	const {
+		pullSite,
+		clearPullState,
+		getPullState,
+		isAnySitePulling,
+		isAnySitePushing,
+		pushSite,
+		getPushState,
+		clearPushState,
+	} = useSyncSites();
 	const { isKeyPulling, isKeyFinished, isKeyFailed } = useSyncStatesProgressInfo();
+	const showPushStagingConfirmation = useConfirmationDialog( {
+		localStorageKey: 'dontShowPushConfirmation',
+		message: __( 'Overwrite Staging site' ),
+		detail: __(
+			'Pushing will replace the existing files and database with a copy from your local site.\n\n The staging site will be backed-up before any changes are applied.'
+		),
+		confirmButtonLabel: __( 'Push' ),
+	} );
+	const showPushProductionConfirmation = useConfirmationDialog( {
+		localStorageKey: 'dontShowPushConfirmation',
+		message: __( 'Overwrite Production site' ),
+		detail: __(
+			'Pushing will replace the existing files and database with a copy from your local site.\n\n The production site will be backed-up before any changes are applied.'
+		),
+		confirmButtonLabel: __( 'Push' ),
+	} );
 	const siteSections: ConnectedSiteSection[] = useMemo( () => {
 		const siteSections: ConnectedSiteSection[] = [];
 		const processedSites = new Set< number >();
@@ -114,6 +138,14 @@ export function SyncConnectedSites( {
 		}
 	};
 
+	const handlePushSite = async ( connectedSite: SyncSite ) => {
+		if ( connectedSite.isStaging ) {
+			showPushStagingConfirmation( () => pushSite( connectedSite, selectedSite ) );
+		} else {
+			showPushProductionConfirmation( () => pushSite( connectedSite, selectedSite ) );
+		}
+	};
+
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
 			<div className="flex flex-col flex-1 pt-8 overflow-y-auto">
@@ -126,7 +158,7 @@ export function SyncConnectedSites( {
 								variant="link"
 								className="!ml-auto !text-a8c-gray-70 hover:!text-a8c-red-50 "
 								onClick={ () => handleDisconnectSite( section.id, section.name ) }
-								disabled={ isAnySitePulling }
+								disabled={ isAnySitePulling || isAnySitePushing }
 							>
 								{ __( 'Disconnect' ) }
 							</Button>
@@ -136,6 +168,8 @@ export function SyncConnectedSites( {
 							const isPulling = sitePullState && isKeyPulling( sitePullState.status.key );
 							const isError = sitePullState && isKeyFailed( sitePullState.status.key );
 							const hasPullFinished = sitePullState && isKeyFinished( sitePullState.status.key );
+
+							const pushState = getPushState( selectedSite.id, connectedSite.id );
 							return (
 								<div
 									key={ connectedSite.id }
@@ -170,67 +204,72 @@ export function SyncConnectedSites( {
 											</div>
 										) }
 										{ isError && (
-											<div className="flex gap-4 pl-4 ml-auto items-center shrink-0 text-a8c-red-50">
-												<span className="flex items-center gap-2">
-													<ErrorIcon />
-													{ __( 'Error pulling changes' ) }
-												</span>
-												<Button
-													variant="link"
-													className="ml-3"
-													onClick={ () => clearPullState( selectedSite.id, connectedSite.id ) }
-												>
-													{ __( 'Clear' ) }
-												</Button>
-											</div>
+											<SyncPullPushClear
+												onClick={ () => clearPullState( selectedSite.id, connectedSite.id ) }
+												isError
+											>
+												{ __( 'Error pulling changes' ) }
+											</SyncPullPushClear>
 										) }
 										{ hasPullFinished && (
-											<div className="flex gap-4 pl-4 ml-auto items-center shrink-0 text-a8c-green-50">
-												<span className="flex items-center gap-2">
-													<CheckIcon />
-													{ __( 'Pull complete' ) }
-												</span>
-												<Button
-													variant="link"
-													className="ml-3"
-													onClick={ () => clearPullState( selectedSite.id, connectedSite.id ) }
-												>
-													{ __( 'Clear' ) }
-												</Button>
+											<SyncPullPushClear
+												onClick={ () => clearPullState( selectedSite.id, connectedSite.id ) }
+											>
+												{ __( 'Pull complete' ) }
+											</SyncPullPushClear>
+										) }
+										{ pushState.status && pushState.isInProgress && (
+											<div className="flex flex-col gap-2 min-w-44">
+												<div className="a8c-body-small">{ pushState.status.message }</div>
+												<ProgressBar value={ pushState.status.progress } maxValue={ 100 } />
 											</div>
 										) }
-										{ ! isPulling && ! hasPullFinished && ! isError && (
-											<div className="flex gap-2 pl-4 ml-auto shrink-0 h-5">
-												<Button
-													variant="link"
-													className="!text-black hover:!text-a8c-blueberry"
-													onClick={ () => {
-														const detail = connectedSite.isStaging
-															? __(
-																	"Pulling will replace your Studio site's files and database with a copy from your staging site."
-															  )
-															: __(
-																	"Pulling will replace your Studio site's files and database with a copy from your production site."
-															  );
-														showPullConfirmation( () => pullSite( connectedSite, selectedSite ), {
-															detail,
-														} );
-													} }
-													disabled={ isAnySitePulling }
-												>
-													<Icon icon={ cloudDownload } />
-													{ __( 'Pull' ) }
-												</Button>
-												<Button
-													variant="link"
-													className="!text-black hover:!text-a8c-blueberry"
-													disabled={ isAnySitePulling }
-												>
-													<Icon icon={ cloudUpload } />
-													{ __( 'Push' ) }
-												</Button>
-											</div>
+
+										{ pushState.status && pushState.hasFinished && (
+											<SyncPullPushClear
+												onClick={ () => clearPushState( selectedSite.id, connectedSite.id ) }
+											>
+												{ pushState.status.message }
+											</SyncPullPushClear>
 										) }
+										{ ! isPulling &&
+											! hasPullFinished &&
+											! isError &&
+											! pushState.isInProgress &&
+											! pushState.isError &&
+											! pushState.hasFinished && (
+												<div className="flex gap-2 pl-4 ml-auto shrink-0 h-5">
+													<Button
+														variant="link"
+														className="!text-black hover:!text-a8c-blueberry"
+														onClick={ () => {
+															const detail = connectedSite.isStaging
+																? __(
+																		"Pulling will replace your Studio site's files and database with a copy from your staging site."
+																  )
+																: __(
+																		"Pulling will replace your Studio site's files and database with a copy from your production site."
+																  );
+															showPullConfirmation( () => pullSite( connectedSite, selectedSite ), {
+																detail,
+															} );
+														} }
+														disabled={ isAnySitePulling || isAnySitePushing }
+													>
+														<Icon icon={ cloudDownload } />
+														{ __( 'Pull' ) }
+													</Button>
+													<Button
+														variant="link"
+														className="!text-black hover:!text-a8c-blueberry"
+														onClick={ () => handlePushSite( connectedSite ) }
+														disabled={ isAnySitePulling || isAnySitePushing }
+													>
+														<Icon icon={ cloudUpload } />
+														{ __( 'Push' ) }
+													</Button>
+												</div>
+											) }
 									</div>
 								</div>
 							);
