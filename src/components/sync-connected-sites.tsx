@@ -6,11 +6,15 @@ import { useMemo } from 'react';
 import { useSyncSites } from '../hooks/sync-sites';
 import { useConfirmationDialog } from '../hooks/use-confirmation-dialog';
 import { SyncSite } from '../hooks/use-fetch-wpcom-sites';
+import { useOffline } from '../hooks/use-offline';
 import { useSyncStatesProgressInfo } from '../hooks/use-sync-states-progress-info';
+import { cx } from '../lib/cx';
 import { getIpcApi } from '../lib/get-ipc-api';
 import { ArrowIcon } from './arrow-icon';
 import { Badge } from './badge';
 import Button from './button';
+import { ConnectCreateButtons } from './connect-create-buttons';
+import offlineIcon from './offline-icon';
 import ProgressBar from './progress-bar';
 import { SyncPullPushClear } from './sync-pull-push-clear';
 import Tooltip from './tooltip';
@@ -35,6 +39,7 @@ export function SyncConnectedSites( {
 	selectedSite: SiteDetails;
 } ) {
 	const { __ } = useI18n();
+	const isOffline = useOffline();
 	const {
 		pullSite,
 		clearPullState,
@@ -224,7 +229,6 @@ export function SyncConnectedSites( {
 												<ProgressBar value={ pushState.status.progress } maxValue={ 100 } />
 											</div>
 										) }
-
 										{ pushState.status && pushState.hasFinished && (
 											<SyncPullPushClear
 												onClick={ () => clearPushState( selectedSite.id, connectedSite.id ) }
@@ -238,37 +242,55 @@ export function SyncConnectedSites( {
 											! pushState.isInProgress &&
 											! pushState.isError &&
 											! pushState.hasFinished && (
-												<div className="flex gap-2 pl-4 ml-auto shrink-0 h-5">
-													<Button
-														variant="link"
-														className="!text-black hover:!text-a8c-blueberry"
-														onClick={ () => {
-															const detail = connectedSite.isStaging
-																? __(
-																		"Pulling will replace your Studio site's files and database with a copy from your staging site."
-																  )
-																: __(
-																		"Pulling will replace your Studio site's files and database with a copy from your production site."
-																  );
-															showPullConfirmation( () => pullSite( connectedSite, selectedSite ), {
-																detail,
-															} );
-														} }
-														disabled={ isAnySitePulling || isAnySitePushing }
-													>
-														<Icon icon={ cloudDownload } />
-														{ __( 'Pull' ) }
-													</Button>
-													<Button
-														variant="link"
-														className="!text-black hover:!text-a8c-blueberry"
-														onClick={ () => handlePushSite( connectedSite ) }
-														disabled={ isAnySitePulling || isAnySitePushing }
-													>
-														<Icon icon={ cloudUpload } />
-														{ __( 'Push' ) }
-													</Button>
-												</div>
+												<Tooltip
+													disabled={ ! isOffline }
+													text={ __(
+														'Pulling or pushing a site requires an internet connection.'
+													) }
+													icon={ offlineIcon }
+													placement="top-start"
+												>
+													<div className="flex gap-2 pl-4 ml-auto shrink-0 h-5">
+														<Button
+															variant="link"
+															className={ cx(
+																! isOffline && '!text-black hover:!text-a8c-blueberry'
+															) }
+															onClick={ () => {
+																const detail = connectedSite.isStaging
+																	? __(
+																			"Pulling will replace your Studio site's files and database with a copy from your staging site."
+																	  )
+																	: __(
+																			"Pulling will replace your Studio site's files and database with a copy from your production site."
+																	  );
+																showPullConfirmation(
+																	() => pullSite( connectedSite, selectedSite ),
+																	{
+																		detail,
+																	}
+																);
+															} }
+															disabled={ isAnySitePulling || isAnySitePushing || isOffline }
+															aria-disabled={ isOffline }
+														>
+															<Icon icon={ cloudDownload } />
+															{ __( 'Pull' ) }
+														</Button>
+														<Button
+															variant="link"
+															className={ cx(
+																! isOffline && '!text-black hover:!text-a8c-blueberry'
+															) }
+															onClick={ () => handlePushSite( connectedSite ) }
+															disabled={ isAnySitePulling || isAnySitePushing || isOffline }
+															aria-disabled={ isOffline }
+														>
+															<Icon icon={ cloudUpload } />
+															{ __( 'Push' ) }
+														</Button>
+													</div>
+												</Tooltip>
 											) }
 									</div>
 								</div>
@@ -279,23 +301,12 @@ export function SyncConnectedSites( {
 			</div>
 
 			<div className="flex mt-auto gap-4 py-5 px-8 border-t border-a8c-gray-5 flex-shrink-0">
-				<Button
-					onClick={ openSitesSyncSelector }
-					variant="secondary"
-					className="!text-a8c-blueberry !shadow-a8c-blueberry"
-				>
-					{ __( 'Connect site' ) }
-				</Button>
-				<Button
-					onClick={ () => {
-						getIpcApi().openURL( 'https://wordpress.com/start/new-site' );
-					} }
-					variant="secondary"
-					className="!text-a8c-blueberry !shadow-a8c-blueberry"
-				>
-					{ __( 'Create new site' ) }
-					<ArrowIcon />
-				</Button>
+				<ConnectCreateButtons
+					connectSite={ openSitesSyncSelector }
+					isOffline={ isOffline }
+					connectButtonVariant="secondary"
+					createButtonVariant="secondary"
+				/>
 			</div>
 		</div>
 	);
