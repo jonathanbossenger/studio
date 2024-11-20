@@ -7,6 +7,7 @@ import { useSyncSites } from '../hooks/sync-sites';
 import { useConfirmationDialog } from '../hooks/use-confirmation-dialog';
 import { SyncSite } from '../hooks/use-fetch-wpcom-sites';
 import { useOffline } from '../hooks/use-offline';
+import { useSiteDetails } from '../hooks/use-site-details';
 import { useSyncStatesProgressInfo } from '../hooks/use-sync-states-progress-info';
 import { cx } from '../lib/cx';
 import { getIpcApi } from '../lib/get-ipc-api';
@@ -40,6 +41,7 @@ export function SyncConnectedSites( {
 } ) {
 	const { __ } = useI18n();
 	const isOffline = useOffline();
+	const { stopServer } = useSiteDetails();
 	const {
 		pullSite,
 		clearPullState,
@@ -256,7 +258,7 @@ export function SyncConnectedSites( {
 															className={ cx(
 																! isOffline && '!text-black hover:!text-a8c-blueberry'
 															) }
-															onClick={ () => {
+															onClick={ async () => {
 																const detail = connectedSite.isStaging
 																	? __(
 																			"Pulling will replace your Studio site's files and database with a copy from your staging site."
@@ -264,8 +266,14 @@ export function SyncConnectedSites( {
 																	: __(
 																			"Pulling will replace your Studio site's files and database with a copy from your production site."
 																	  );
+
 																showPullConfirmation(
-																	() => pullSite( connectedSite, selectedSite ),
+																	async () => {
+																		if ( selectedSite.running ) {
+																			await stopServer( selectedSite.id );
+																		}
+																		pullSite( connectedSite, selectedSite );
+																	},
 																	{
 																		detail,
 																	}
