@@ -134,11 +134,15 @@ function NoAuthSyncTab() {
 	);
 }
 
+export type OpenSitesSyncSelector = ( options?: { disconnectSiteId?: number } ) => void;
+
 export function ContentTabSync( { selectedSite }: { selectedSite: SiteDetails } ) {
 	const { __ } = useI18n();
 	const { connectedSites, connectSite, disconnectSite, syncSites, isFetching, refetchSites } =
 		useSyncSites();
-	const [ isSyncSitesSelectorOpen, setIsSyncSitesSelectorOpen ] = useState( false );
+	const [ isSyncSitesSelectorOpen, setIsSyncSitesSelectorOpen ] = useState<
+		boolean | { disconnectSiteId?: number }
+	>( false );
 	const { isAuthenticated } = useAuth();
 
 	useEffect( () => {
@@ -168,7 +172,7 @@ export function ContentTabSync( { selectedSite }: { selectedSite: SiteDetails } 
 				<SyncConnectedSites
 					connectedSites={ connectedSites }
 					selectedSite={ selectedSite }
-					openSitesSyncSelector={ () => setIsSyncSitesSelectorOpen( true ) }
+					openSitesSyncSelector={ ( options ) => setIsSyncSitesSelectorOpen( options || true ) }
 					disconnectSite={ ( id: number ) => disconnectSite( id ) }
 				/>
 			) : (
@@ -183,7 +187,16 @@ export function ContentTabSync( { selectedSite }: { selectedSite: SiteDetails } 
 					onRequestClose={ () => setIsSyncSitesSelectorOpen( false ) }
 					syncSites={ syncSites }
 					onInitialRender={ refetchSites }
-					onConnect={ ( siteId ) => {
+					onConnect={ async ( siteId ) => {
+						const disconnectSiteId =
+							typeof isSyncSitesSelectorOpen === 'object'
+								? isSyncSitesSelectorOpen.disconnectSiteId
+								: undefined;
+
+						if ( disconnectSiteId ) {
+							await disconnectSite( disconnectSiteId );
+						}
+
 						const newConnectedSite = syncSites.find( ( site ) => site.id === siteId );
 						if ( ! newConnectedSite ) {
 							getIpcApi().showErrorMessageBox( {

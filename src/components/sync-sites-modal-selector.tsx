@@ -229,11 +229,25 @@ function SiteItem( {
 				</div>
 			) }
 			{ isUnsupported && (
-				<div className="a8c-body-small text-a8c-gray-30 shrink-0">{ __( 'Unsupported plan' ) }</div>
+				<div className="a8c-body-small text-a8c-gray-30 shrink-0 text-right">
+					<Button
+						variant="link"
+						onClick={ () => getIpcApi().openURL( `https://wordpress.com/plans/${ site.id }` ) }
+					>
+						{ __( 'Upgrade plan ↗' ) }
+					</Button>
+				</div>
 			) }
 			{ isNeedsTransfer && (
-				<div className="a8c-body-small text-a8c-gray-30 shrink-0">
-					{ __( 'Please enable hosting features' ) }
+				<div className="a8c-body-small text-a8c-gray-30 shrink-0 text-right">
+					<Button
+						variant="link"
+						onClick={ () =>
+							getIpcApi().openURL( `https://wordpress.com/hosting-features/${ site.id }` )
+						}
+					>
+						{ __( 'Enable hosting features ↗' ) }
+					</Button>
 				</div>
 			) }
 		</div>
