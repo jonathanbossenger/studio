@@ -2,6 +2,7 @@ import { speak } from '@wordpress/a11y';
 import { Spinner } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import { useEffect } from 'react';
+import { useSyncSites } from '../hooks/sync-sites';
 import { useImportExport } from '../hooks/use-import-export';
 import { useSiteDetails } from '../hooks/use-site-details';
 import { isMac } from '../lib/app-globals';
@@ -108,9 +109,24 @@ function ButtonToRun( { running, id, name }: Pick< SiteDetails, 'running' | 'id'
 }
 function SiteItem( { site }: { site: SiteDetails } ) {
 	const { selectedSite, setSelectedSiteId } = useSiteDetails();
-	const { isSiteImporting } = useImportExport();
 	const isSelected = site === selectedSite;
+	const { isSiteImporting } = useImportExport();
+	const { isSiteIdPulling } = useSyncSites();
 	const isImporting = isSiteImporting( site.id );
+	const isPulling = isSiteIdPulling( site.id );
+	const showSpinner = site.isAddingSite || isImporting || isPulling;
+
+	let tooltipText;
+	if ( site.isAddingSite ) {
+		tooltipText = __( 'Adding' );
+	} else if ( isImporting ) {
+		tooltipText = __( 'Importing' );
+	} else if ( isPulling ) {
+		tooltipText = __( 'Syncing' );
+	} else {
+		tooltipText = __( 'Loading' );
+	}
+
 	return (
 		<li
 			className={ cx(
@@ -127,8 +143,12 @@ function SiteItem( { site }: { site: SiteDetails } ) {
 			>
 				{ site.name }
 			</button>
-			{ site.isAddingSite || isImporting ? (
-				<Spinner className="!w-2.5 !h-2.5 !top-[6px] !mr-2 [&>circle]:stroke-a8c-gray-70" />
+			{ showSpinner ? (
+				<Tooltip text={ tooltipText }>
+					<div className="grid place-items-center">
+						<Spinner className="!w-2.5 !h-2.5 !top-[6px] !mr-2 [&>circle]:stroke-a8c-gray-70" />
+					</div>
+				</Tooltip>
 			) : (
 				<ButtonToRun { ...site } />
 			) }
