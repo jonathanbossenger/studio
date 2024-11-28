@@ -345,7 +345,15 @@ export async function startServer(
 	if ( parentWindow && ! parentWindow.isDestroyed() && ! event.sender.isDestroyed() ) {
 		parentWindow.webContents.send( 'theme-details-changed', id, server.details.themeDetails );
 	}
-	server.updateCachedThumbnail().then( () => sendThumbnailChangedEvent( event, id ) );
+
+	if ( server.details.running ) {
+		try {
+			await server.updateCachedThumbnail();
+			sendThumbnailChangedEvent( event, id );
+		} catch ( error ) {
+			console.error( `Failed to update thumbnail for server ${ id }:`, error );
+		}
+	}
 
 	console.log( 'Server started', server.details );
 	await updateSite( event, server.details );
