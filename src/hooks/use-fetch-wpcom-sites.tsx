@@ -8,7 +8,8 @@ type SyncSupport =
 	| 'syncable'
 	| 'needs-transfer'
 	| 'already-connected'
-	| 'jetpack-site';
+	| 'jetpack-site'
+	| 'deleted';
 
 export type SyncSite = {
 	id: number;
@@ -43,6 +44,7 @@ type SitesEndpointSite = {
 		product_slug: string;
 		user_is_owner: boolean;
 	};
+	is_deleted: boolean;
 };
 
 type SitesEndpointResponse = {
@@ -60,6 +62,9 @@ function hasSupportedPlan( site: SitesEndpointSite ): boolean {
 }
 
 function getSyncSupport( site: SitesEndpointSite, connectedSiteIds: number[] ): SyncSupport {
+	if ( site.is_deleted ) {
+		return 'deleted';
+	}
 	if ( isJetpackSite( site ) && ! hasSupportedPlan( site ) ) {
 		return 'jetpack-site';
 	}
@@ -94,15 +99,22 @@ function transformSiteResponse(
 	sites: SitesEndpointSite[],
 	connectedSiteIds: number[]
 ): SyncSite[] {
-	return sites.map( ( site ) =>
-		transformSingleSiteResponse( site, getSyncSupport( site, connectedSiteIds ) )
-	);
+	return sites.reduce( ( acc: SyncSite[], site ) => {
+		if ( site.is_deleted && ! connectedSiteIds.some( ( id ) => id === site.ID ) ) {
+			return acc;
+		}
+
+		acc.push( transformSingleSiteResponse( site, getSyncSupport( site, connectedSiteIds ) ) );
+
+		return acc;
+	}, [] );
 }
 
 export const useFetchWpComSites = ( connectedSiteIds: number[] ) => {
 	const [ rawSyncSites, setRawSyncSites ] = useState< SitesEndpointSite[] >( [] );
 	const { isAuthenticated, client } = useAuth();
 	const isFetchingSites = useRef( false );
+	const isInitialized = useRef( false ); // By default syncSites are always empty array, so this flag helps to determine if we have fetched sites at least once
 	const isOffline = useOffline();
 
 	const joinedConnectedSiteIds = connectedSiteIds.join( ',' );
@@ -130,14 +142,18 @@ export const useFetchWpComSites = ( connectedSiteIds: number[] ) => {
 					path: `/me/sites`,
 				},
 				{
-					fields: 'name,ID,URL,plan,is_wpcom_staging_site,is_wpcom_atomic,options,jetpack',
+					fields:
+						'name,ID,URL,plan,is_wpcom_staging_site,is_wpcom_atomic,options,jetpack,is_deleted',
 					filter: 'atomic,wpcom',
 					options: 'created_at,wpcom_staging_blog_ids',
-					site_visibility: 'visible',
 					site_activity: 'active',
 				}
 			);
+
+			isInitialized.current = true;
+
 			setRawSyncSites( response.sites );
+
 			return response.sites;
 		} catch ( error ) {
 			Sentry.captureException( error );
@@ -152,10 +168,6 @@ export const useFetchWpComSites = ( connectedSiteIds: number[] ) => {
 		fetchSites();
 	}, [ fetchSites ] );
 
-	const refetchSites = useCallback( () => {
-		return fetchSites();
-	}, [ fetchSites ] );
-
 	const syncSites = useMemo(
 		() => transformSiteResponse( rawSyncSites, memoizedConnectedSiteIds ),
 		[ rawSyncSites, memoizedConnectedSiteIds ]
@@ -164,6 +176,7 @@ export const useFetchWpComSites = ( connectedSiteIds: number[] ) => {
 	return {
 		syncSites,
 		isFetching: isFetchingSites.current,
-		refetchSites,
+		isInitialized: isInitialized.current,
+		refetchSites: fetchSites,
 	};
 };
