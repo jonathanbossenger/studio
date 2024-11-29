@@ -220,11 +220,9 @@ export async function updateSite(
 	return mergeSiteDetailsWithRunningDetails( userData.sites );
 }
 
-export async function connectWpcomSite(
-	event: IpcMainInvokeEvent,
-	sites: SyncSite[],
-	localSiteId: string
-) {
+type WpcomSitesToConnect = { sites: SyncSite[]; localSiteId: string }[];
+
+export async function connectWpcomSites( event: IpcMainInvokeEvent, list: WpcomSitesToConnect ) {
 	const userData = await loadUserData();
 	const currentUserId = userData.authToken?.id;
 
@@ -238,26 +236,31 @@ export async function connectWpcomSite(
 
 	const connections = userData.connectedWpcomSites[ currentUserId ];
 
-	sites.forEach( ( siteToAdd ) => {
-		const isAlreadyConnected = connections.some(
-			( conn ) => conn.id === siteToAdd.id && conn.localSiteId === localSiteId
-		);
+	list.forEach( ( { sites, localSiteId } ) => {
+		sites.forEach( ( siteToAdd ) => {
+			const isAlreadyConnected = connections.some(
+				( conn ) => conn.id === siteToAdd.id && conn.localSiteId === localSiteId
+			);
 
-		// Add the site if it's not already connected
-		if ( ! isAlreadyConnected ) {
-			connections.push( { ...siteToAdd, localSiteId } );
-		}
+			// Add the site if it's not already connected
+			if ( ! isAlreadyConnected ) {
+				connections.push( { ...siteToAdd, localSiteId } );
+			}
+		} );
 	} );
 
 	await saveUserData( userData );
 
-	return connections.filter( ( conn ) => conn.localSiteId === localSiteId );
+	return connections.filter( ( conn ) =>
+		list.some( ( { localSiteId } ) => conn.localSiteId === localSiteId )
+	);
 }
 
-export async function disconnectWpcomSite(
+type WpcomSitesToDisconnect = { siteIds: number[]; localSiteId: string }[];
+
+export async function disconnectWpcomSites(
 	event: IpcMainInvokeEvent,
-	siteIds: number[],
-	localSiteId: string
+	list: WpcomSitesToDisconnect
 ) {
 	const userData = await loadUserData();
 	const currentUserId = userData.authToken?.id;
@@ -266,20 +269,28 @@ export async function disconnectWpcomSite(
 		throw new Error( 'User not authenticated' );
 	}
 
-	const connections = userData.connectedWpcomSites?.[ currentUserId ] || [];
+	const connectedWpcomSites = userData.connectedWpcomSites;
 
-	const updatedConnections = connections.filter(
-		( conn ) => ! ( siteIds.includes( conn.id ) && conn.localSiteId === localSiteId )
-	);
+	// Totally unreal case, added it to help TS parse the code below. And if this error happens, we definitely have something wrong.
+	if ( ! Array.isArray( connectedWpcomSites?.[ currentUserId ] ) ) {
+		throw new Error(
+			'Something went wrong, since you are trying to disconnect something, but there are no stored connections yet'
+		);
+	}
 
-	userData.connectedWpcomSites = {
-		...userData.connectedWpcomSites,
-		[ currentUserId ]: updatedConnections,
-	};
+	list.forEach( ( { siteIds, localSiteId } ) => {
+		const updatedConnections = connectedWpcomSites[ currentUserId ].filter(
+			( conn ) => ! ( siteIds.includes( conn.id ) && conn.localSiteId === localSiteId )
+		);
+
+		connectedWpcomSites[ currentUserId ] = updatedConnections;
+	} );
 
 	await saveUserData( userData );
 
-	return updatedConnections.filter( ( conn ) => conn.localSiteId === localSiteId );
+	return connectedWpcomSites[ currentUserId ].filter( ( conn ) =>
+		list.some( ( { localSiteId } ) => conn.localSiteId === localSiteId )
+	);
 }
 
 export async function updateConnectedWpcomSites(
@@ -294,6 +305,10 @@ export async function updateConnectedWpcomSites(
 	}
 
 	const connections = userData.connectedWpcomSites?.[ currentUserId ] || [];
+
+	if ( ! connections.length ) {
+		return;
+	}
 
 	updatedSites.forEach( ( updatedSite ) => {
 		const index = connections.findIndex(
