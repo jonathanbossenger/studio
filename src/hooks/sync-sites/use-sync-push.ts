@@ -95,6 +95,19 @@ export function useSyncPush( {
 		]
 	);
 
+	const getErrorFromResponse = ( error: unknown ): string => {
+		if (
+			typeof error === 'object' &&
+			error !== null &&
+			'error' in error &&
+			typeof ( error as { error: unknown } ).error === 'string'
+		) {
+			return ( error as { error: string } ).error;
+		}
+
+		return __( 'Studio was unable to connect to WordPress.com. Please try again.' );
+	};
+
 	const pushSite = useCallback(
 		async ( connectedSite: SyncSite, selectedSite: SiteDetails ) => {
 			if ( ! client ) {
@@ -152,7 +165,7 @@ export function useSyncPush( {
 				} );
 				getIpcApi().showErrorMessageBox( {
 					title: sprintf( __( 'Error pushing to %s' ), connectedSite.name ),
-					message: __( 'Studio was unable to connect to WordPress.com. Please try again.' ),
+					message: getErrorFromResponse( error ),
 				} );
 			} finally {
 				await getIpcApi().removeTemporalFile( archivePath );
