@@ -6,6 +6,7 @@ import {
 	type IpcMainInvokeEvent,
 	globalShortcut,
 	Menu,
+	dialog,
 } from 'electron';
 import path from 'path';
 import * as Sentry from '@sentry/electron/main';
@@ -13,6 +14,7 @@ import { __ } from '@wordpress/i18n';
 import packageJson from '../package.json';
 import { PROTOCOL_PREFIX } from './constants';
 import * as ipcHandlers from './ipc-handlers';
+import { hasActiveSyncOperations } from './lib/active-sync-operations';
 import { getPlatformName } from './lib/app-globals';
 import { bumpAggregatedUniqueStat, bumpStat } from './lib/bump-stats';
 import {
@@ -301,6 +303,30 @@ async function appBoot() {
 
 	app.on( 'will-quit', () => {
 		globalShortcut.unregisterAll();
+	} );
+
+	app.on( 'before-quit', ( event ) => {
+		if ( ! hasActiveSyncOperations() ) {
+			return;
+		}
+
+		const QUIT_APP_BUTTON_INDEX = 0;
+		const CANCEL_BUTTON_INDEX = 1;
+
+		const clickedButtonIndex = dialog.showMessageBoxSync( {
+			message: __( 'Sync in progress' ),
+			detail: __(
+				'There’s a sync operation in progress. Quitting the app will abort that operation. Are you sure you want to quit?'
+			),
+			buttons: [ __( 'Yes, quit the app' ), __( 'No, take me back' ) ],
+			cancelId: CANCEL_BUTTON_INDEX,
+			defaultId: QUIT_APP_BUTTON_INDEX,
+			type: 'warning',
+		} );
+
+		if ( clickedButtonIndex === CANCEL_BUTTON_INDEX ) {
+			event.preventDefault();
+		}
 	} );
 
 	app.on( 'quit', () => {

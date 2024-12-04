@@ -19,6 +19,7 @@ import archiver from 'archiver';
 import { DEFAULT_PHP_VERSION } from '../vendor/wp-now/src/constants';
 import { MAIN_MIN_WIDTH, SIDEBAR_WIDTH } from './constants';
 import { SyncSite } from './hooks/use-fetch-wpcom-sites';
+import { ACTIVE_SYNC_OPERATIONS } from './lib/active-sync-operations';
 import { download } from './lib/download';
 import { isEmptyDir, pathExists, isWordPressDirectory, sanitizeFolderName } from './lib/fs-utils';
 import { getImageData } from './lib/get-image-data';
@@ -1002,4 +1003,18 @@ export async function isImportExportSupported( _event: IpcMainInvokeEvent, siteI
 		throw new Error( 'Site not found.' );
 	}
 	return site.hasSQLitePlugin();
+}
+
+/**
+ * Store the ID of a push/pull operation in a deduped set.
+ */
+export function addSyncOperation( event: IpcMainInvokeEvent, id: string ) {
+	ACTIVE_SYNC_OPERATIONS.add( id );
+}
+
+/**
+ * Clear the ID of a push/pull operation.
+ */
+export function clearSyncOperation( event: IpcMainInvokeEvent, id: string ) {
+	ACTIVE_SYNC_OPERATIONS.delete( id );
 }

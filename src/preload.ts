@@ -96,6 +96,8 @@ const api: IpcApi = {
 		ipcRenderer.invoke( 'removeSyncBackup', remoteSiteId ),
 	getConnectedWpcomSites: ( localSiteId?: string ) =>
 		ipcRenderer.invoke( 'getConnectedWpcomSites', localSiteId ),
+	addSyncOperation: ( id: string ) => ipcRenderer.invoke( 'addSyncOperation', id ),
+	clearSyncOperation: ( id: string ) => ipcRenderer.invoke( 'clearSyncOperation', id ),
 };
 
 contextBridge.exposeInMainWorld( 'ipcApi', api );
