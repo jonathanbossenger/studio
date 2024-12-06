@@ -19,9 +19,11 @@ export type SyncPushState = {
 export function useSyncPush( {
 	pushStates,
 	setPushStates,
+	onPushSuccess,
 }: {
 	pushStates: Record< string, SyncPushState >;
 	setPushStates: React.Dispatch< React.SetStateAction< Record< string, SyncPushState > > >;
+	onPushSuccess?: ( siteId: number, localSiteId: string ) => void;
 } ) {
 	const { __ } = useI18n();
 	const { client } = useAuth();
@@ -71,6 +73,7 @@ export function useSyncPush( {
 			let status: PushStateProgressInfo = pushStatesProgressInfo.importing;
 			if ( response.success && response.status === 'finished' ) {
 				status = pushStatesProgressInfo.finished;
+				onPushSuccess?.( remoteSiteId, syncPushState.selectedSite.id );
 				getIpcApi().showNotification( {
 					title: syncPushState.selectedSite.name,
 					body: syncPushState.isStaging
@@ -88,6 +91,7 @@ export function useSyncPush( {
 		[
 			__,
 			client,
+			onPushSuccess,
 			pushStatesProgressInfo.failed,
 			pushStatesProgressInfo.finished,
 			pushStatesProgressInfo.importing,

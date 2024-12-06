@@ -21,7 +21,7 @@ import { CircleRedCrossIcon } from './icons/circle-red-cross';
 import offlineIcon from './offline-icon';
 import ProgressBar from './progress-bar';
 import { SyncPullPushClear } from './sync-pull-push-clear';
-import Tooltip from './tooltip';
+import { Tooltip, DynamicTooltip } from './tooltip';
 import { WordPressLogoCircle } from './wordpress-logo-circle';
 
 interface ConnectedSiteSection {
@@ -52,9 +52,7 @@ const SyncConnectedSitesSection = ( {
 		pushSite,
 		getPushState,
 		clearPushState,
-		updateTimestamp,
-		getLastSyncTimeWithType,
-		clearTimestamps,
+		getLastSyncTimeText,
 	} = useSyncSites();
 	const { isKeyPulling, isKeyFinished, isKeyFailed } = useSyncStatesProgressInfo();
 	const isOffline = useOffline();
@@ -106,7 +104,6 @@ const SyncConnectedSitesSection = ( {
 					localStorage.setItem( 'dontShowDisconnectWarning', 'true' );
 				}
 				disconnectSite( section.id );
-				clearTimestamps( selectedSite.id, section.id );
 				section.connectedSites.forEach( ( connectedSite ) => {
 					clearPullState( selectedSite.id, connectedSite.id );
 				} );
@@ -119,12 +116,10 @@ const SyncConnectedSitesSection = ( {
 	const handlePushSite = async ( connectedSite: SyncSite ) => {
 		if ( connectedSite.isStaging ) {
 			showPushStagingConfirmation( () => {
-				updateTimestamp( selectedSite.id, connectedSite.id, 'push' );
 				pushSite( connectedSite, selectedSite );
 			} );
 		} else {
 			showPushProductionConfirmation( () => {
-				updateTimestamp( selectedSite.id, connectedSite.id, 'push' );
 				pushSite( connectedSite, selectedSite );
 			} );
 		}
@@ -275,12 +270,10 @@ const SyncConnectedSitesSection = ( {
 											placement="top-start"
 										>
 											<div className="flex gap-2 pl-4 ml-auto shrink-0 h-5">
-												<Tooltip
-													text={ getLastSyncTimeWithType(
-														selectedSite.id,
-														connectedSite.id,
-														'pull'
-													) }
+												<DynamicTooltip
+													getTooltipText={ () =>
+														getLastSyncTimeText( connectedSite.lastPullTimestamp, 'pull' )
+													}
 													placement="top-start"
 													disabled={ isOffline }
 												>
@@ -297,22 +290,23 @@ const SyncConnectedSitesSection = ( {
 																: __(
 																		"Pulling will replace your Studio site's files and database with a copy from your production site."
 																  );
-															showPullConfirmation( () => pullSite( connectedSite, selectedSite ), {
-																detail,
-															} );
+															showPullConfirmation(
+																() => {
+																	pullSite( connectedSite, selectedSite );
+																},
+																{ detail }
+															);
 														} }
 														disabled={ isAnySitePulling || isAnySitePushing || isOffline }
 													>
 														<Icon icon={ cloudDownload } />
 														{ __( 'Pull' ) }
 													</Button>
-												</Tooltip>
-												<Tooltip
-													text={ getLastSyncTimeWithType(
-														selectedSite.id,
-														connectedSite.id,
-														'push'
-													) }
+												</DynamicTooltip>
+												<DynamicTooltip
+													getTooltipText={ () =>
+														getLastSyncTimeText( connectedSite.lastPushTimestamp, 'push' )
+													}
 													placement="top-start"
 													disabled={ isOffline }
 												>
@@ -327,7 +321,7 @@ const SyncConnectedSitesSection = ( {
 														<Icon icon={ cloudUpload } />
 														{ __( 'Push' ) }
 													</Button>
-												</Tooltip>
+												</DynamicTooltip>
 											</div>
 										</Tooltip>
 									) }
