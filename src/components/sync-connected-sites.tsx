@@ -52,18 +52,17 @@ const SyncConnectedSitesSection = ( {
 		pushSite,
 		getPushState,
 		clearPushState,
+		isSiteIdPulling,
+		isSiteIdPushing,
 		getLastSyncTimeText,
 		connectedSites,
 	} = useSyncSites();
-	const { isKeyPulling, isKeyFinished, isKeyFailed } = useSyncStatesProgressInfo();
+	const { isKeyPulling, isKeyPushing, isKeyFinished, isKeyFailed } = useSyncStatesProgressInfo();
 	const isOffline = useOffline();
-	const isAnyConnectedSiteSyncing = connectedSites.some( ( site ) => {
-		const pullState = getPullState( selectedSite.id, site.id );
-		return (
-			isKeyPulling( pullState?.status?.key ) ||
-			getPushState( selectedSite.id, site.id )?.isInProgress
-		);
-	} );
+	const isAnyConnectedSiteSyncing = connectedSites.some(
+		( site ) =>
+			isSiteIdPulling( selectedSite.id, site.id ) || isSiteIdPushing( selectedSite.id, site.id )
+	);
 	const isAnySiteSyncing = isAnySitePulling || isAnySitePushing;
 	const showPushStagingConfirmation = useConfirmationDialog( {
 		localStorageKey: 'dontShowPushConfirmation',
@@ -136,14 +135,12 @@ const SyncConnectedSitesSection = ( {
 
 	const mainSite = section.connectedSites.find( ( item ) => ! item.isStaging );
 	const hasConnectionErrors = mainSite?.syncSupport !== 'already-connected';
-	const isPulling = section.connectedSites.some( ( site ) => {
-		const sitePullState = getPullState( selectedSite.id, site.id );
-		return sitePullState && isKeyPulling( sitePullState.status.key );
-	} );
-	const isPushing = section.connectedSites.some( ( site ) => {
-		const sitePushState = getPushState( selectedSite.id, site.id );
-		return sitePushState?.isInProgress;
-	} );
+	const isPulling = section.connectedSites.some( ( site ) =>
+		isSiteIdPulling( selectedSite.id, site.id )
+	);
+	const isPushing = section.connectedSites.some( ( site ) =>
+		isSiteIdPushing( selectedSite.id, site.id )
+	);
 
 	return (
 		<div key={ section.id } className="flex flex-col gap-2 mb-6">
@@ -209,7 +206,10 @@ const SyncConnectedSitesSection = ( {
 					const hasPullFinished = sitePullState && isKeyFinished( sitePullState.status.key );
 
 					const pushState = getPushState( selectedSite.id, connectedSite.id );
-					const isPushError = pushState.isError;
+					const isPushing = pushState && isKeyPushing( pushState.status.key );
+					const isPushError = pushState && isKeyFailed( pushState.status.key );
+					const hasPushFinished = pushState && isKeyFinished( pushState.status.key );
+
 					return (
 						<div
 							key={ connectedSite.id }
@@ -264,14 +264,14 @@ const SyncConnectedSitesSection = ( {
 										{ __( 'Pull complete' ) }
 									</SyncPullPushClear>
 								) }
-								{ pushState.status && pushState.isInProgress && (
+								{ pushState?.status && isPushing && (
 									<div className="flex flex-col gap-2 min-w-44">
 										<div className="a8c-body-small">{ pushState.status.message }</div>
 										<ProgressBar value={ pushState.status.progress } maxValue={ 100 } />
 									</div>
 								) }
 
-								{ pushState.status && pushState.hasFinished && (
+								{ pushState?.status && hasPushFinished && (
 									<SyncPullPushClear
 										onClick={ () => clearPushState( selectedSite.id, connectedSite.id ) }
 									>
@@ -282,8 +282,8 @@ const SyncConnectedSitesSection = ( {
 									! hasPullFinished &&
 									! isPullError &&
 									! isPushError &&
-									! pushState.isInProgress &&
-									! pushState.hasFinished && (
+									! isPushing &&
+									! hasPushFinished && (
 										<Tooltip
 											disabled={ ! isOffline }
 											icon={ offlineIcon }
