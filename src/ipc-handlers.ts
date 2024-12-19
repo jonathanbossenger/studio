@@ -18,7 +18,6 @@ import { __, LocaleData, defaultI18n } from '@wordpress/i18n';
 import archiver from 'archiver';
 import { DEFAULT_PHP_VERSION } from '../vendor/wp-now/src/constants';
 import { MAIN_MIN_WIDTH, SIDEBAR_WIDTH } from './constants';
-import { SyncSite } from './hooks/use-fetch-wpcom-sites';
 import { ACTIVE_SYNC_OPERATIONS } from './lib/active-sync-operations';
 import { download } from './lib/download';
 import { isEmptyDir, pathExists, isWordPressDirectory, sanitizeFolderName } from './lib/fs-utils';
@@ -45,6 +44,7 @@ import { popupMenu, setupMenu } from './menu';
 import { SiteServer, createSiteWorkingDirectory } from './site-server';
 import { DEFAULT_SITE_PATH, getResourcesPath, getSiteThumbnailPath } from './storage/paths';
 import { loadUserData, saveUserData } from './storage/user-data';
+import type { SyncSite } from './hooks/use-fetch-wpcom-sites/types';
 import type { WpCliResult } from './lib/wp-cli-process';
 
 const TEMP_DIR = nodePath.join( app.getPath( 'temp' ), 'com.wordpress.studio' ) + nodePath.sep;
@@ -245,7 +245,11 @@ export async function connectWpcomSites( event: IpcMainInvokeEvent, list: WpcomS
 
 			// Add the site if it's not already connected
 			if ( ! isAlreadyConnected ) {
-				connections.push( { ...siteToAdd, localSiteId } );
+				connections.push( {
+					...siteToAdd,
+					localSiteId,
+					syncSupport: 'already-connected',
+				} );
 			}
 		} );
 	} );
