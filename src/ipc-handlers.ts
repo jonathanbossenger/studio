@@ -39,7 +39,7 @@ import { sanitizeForLogging } from './lib/sanitize-for-logging';
 import { sortSites } from './lib/sort-sites';
 import { installSqliteIntegration, keepSqliteIntegrationUpdated } from './lib/sqlite-versions';
 import * as windowsHelpers from './lib/windows-helpers';
-import { writeLogToFile, type LogLevel } from './logging';
+import { getLogsFilePath, writeLogToFile, type LogLevel } from './logging';
 import { popupMenu, setupMenu } from './menu';
 import { SiteServer, createSiteWorkingDirectory } from './site-server';
 import { DEFAULT_SITE_PATH, getResourcesPath, getSiteThumbnailPath } from './storage/paths';
@@ -927,19 +927,32 @@ export async function showMessageBox(
 
 export async function showErrorMessageBox(
 	event: IpcMainInvokeEvent,
-	{ title, message, error }: { title: string; message: string; error?: unknown }
+	{
+		title,
+		message,
+		error,
+		showOpenLogs = false,
+	}: { title: string; message: string; error?: unknown; showOpenLogs?: boolean }
 ) {
 	// Remove prepended error message added by IPC handler
 	const filteredError = ( error as Error )?.message?.replace(
 		/Error invoking remote method '\w+': Error:/g,
 		''
 	);
-	await showMessageBox( event, {
+	const response = await showMessageBox( event, {
 		type: 'error',
 		message: title,
-		detail: error ? `${ message }\n\nError: ${ filteredError }` : message,
-		buttons: [ __( 'OK' ) ],
+		detail: error ? `${ message }\n\n${ filteredError }` : message,
+		buttons: [ ...( showOpenLogs ? [ __( 'Open Studio Logs' ) ] : [] ), __( 'OK' ) ],
 	} );
+
+	if ( showOpenLogs && response.response === 0 ) {
+		const logFilePath = getLogsFilePath();
+		const err = await shell.openPath( logFilePath );
+		if ( err ) {
+			console.error( `Error opening logs file: ${ logFilePath } ${ err }` );
+		}
+	}
 }
 
 export async function showNotification(
