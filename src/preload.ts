@@ -2,7 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import '@sentry/electron/preload';
-import { SaveDialogOptions, contextBridge, ipcRenderer } from 'electron';
+import { SaveDialogOptions, contextBridge, ipcRenderer, webUtils } from 'electron';
 import { LocaleData } from '@wordpress/i18n';
 import { ExportOptions } from './lib/import-export/export/types';
 import { BackupArchiveInfo } from './lib/import-export/import/types';
@@ -102,6 +102,7 @@ const api: IpcApi = {
 		ipcRenderer.invoke( 'getConnectedWpcomSites', localSiteId ),
 	addSyncOperation: ( id: string ) => ipcRenderer.invoke( 'addSyncOperation', id ),
 	clearSyncOperation: ( id: string ) => ipcRenderer.invoke( 'clearSyncOperation', id ),
+	getPathForFile: webUtils.getPathForFile,
 };
 
 contextBridge.exposeInMainWorld( 'ipcApi', api );
