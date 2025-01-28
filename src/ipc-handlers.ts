@@ -40,7 +40,7 @@ import { sortSites } from './lib/sort-sites';
 import { installSqliteIntegration, keepSqliteIntegrationUpdated } from './lib/sqlite-versions';
 import * as windowsHelpers from './lib/windows-helpers';
 import { getLogsFilePath, writeLogToFile, type LogLevel } from './logging';
-import { withMainWindow } from './main-window';
+import { getMainWindow } from './main-window';
 import { popupMenu, setupMenu } from './menu';
 import { SiteServer, createSiteWorkingDirectory } from './site-server';
 import { DEFAULT_SITE_PATH, getResourcesPath, getSiteThumbnailPath } from './storage/paths';
@@ -515,6 +515,9 @@ export async function showUserSettings( event: IpcMainInvokeEvent ): Promise< vo
 	if ( ! parentWindow ) {
 		throw new Error( `No window found for sender of showUserSettings message: ${ event.frameId }` );
 	}
+	if ( parentWindow.isDestroyed() || event.sender.isDestroyed() ) {
+		return;
+	}
 	parentWindow.webContents.send( 'user-settings' );
 }
 
@@ -960,12 +963,15 @@ export async function showNotification(
 	new Notification( options ).show();
 }
 
-export function setupAppMenu( _event: IpcMainInvokeEvent, config: { needsOnboarding: boolean } ) {
-	setupMenu( config );
+export async function setupAppMenu(
+	_event: IpcMainInvokeEvent,
+	config: { needsOnboarding: boolean }
+) {
+	await setupMenu( config );
 }
 
-export function popupAppMenu( _event: IpcMainInvokeEvent ) {
-	popupMenu();
+export async function popupAppMenu( _event: IpcMainInvokeEvent ) {
+	await popupMenu();
 }
 
 export async function promptWindowsSpeedUpSites(
@@ -1098,9 +1104,6 @@ export async function getFileContent( event: IpcMainInvokeEvent, filePath: strin
 }
 
 export async function isFullscreen( _event: IpcMainInvokeEvent ): Promise< boolean > {
-	let isFullscreen = false;
-	withMainWindow( ( window ) => {
-		isFullscreen = window.isFullScreen();
-	} );
-	return isFullscreen;
+	const window = await getMainWindow();
+	return window.isFullScreen();
 }
