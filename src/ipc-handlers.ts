@@ -36,6 +36,7 @@ import { getUserLocaleWithFallback } from './lib/locale-node';
 import * as oauthClient from './lib/oauth';
 import { createPassword } from './lib/passwords';
 import { phpGetThemeDetails } from './lib/php-get-theme-details';
+import { shellOpenExternalWrapper } from './lib/shell-open-external-wrapper';
 import { sortSites } from './lib/sort-sites';
 import { installSqliteIntegration, keepSqliteIntegrationUpdated } from './lib/sqlite-versions';
 import * as windowsHelpers from './lib/windows-helpers';
@@ -638,8 +639,8 @@ export function logRendererMessage(
 	writeLogToFile( level, processId, ...args );
 }
 
-export async function authenticate( _event: IpcMainInvokeEvent ): Promise< void > {
-	return oauthClient.authenticate();
+export function authenticate( _event: IpcMainInvokeEvent ) {
+	oauthClient.authenticate();
 }
 
 export async function getAuthenticationToken(
@@ -689,7 +690,7 @@ export async function getSnapshots( _event: IpcMainInvokeEvent ): Promise< Snaps
 	return snapshots;
 }
 
-export async function openSiteURL(
+export function openSiteURL(
 	event: IpcMainInvokeEvent,
 	id: string,
 	relativeURL = '',
@@ -707,11 +708,11 @@ export async function openSiteURL(
 		url.searchParams.append( 'playground-auto-login', 'true' );
 	}
 
-	shell.openExternal( url.toString() );
+	shellOpenExternalWrapper( url.toString() );
 }
 
-export async function openURL( event: IpcMainInvokeEvent, url: string ) {
-	return shell.openExternal( url );
+export function openURL( event: IpcMainInvokeEvent, url: string ) {
+	shellOpenExternalWrapper( url );
 }
 
 export async function copyText( event: IpcMainInvokeEvent, text: string ) {

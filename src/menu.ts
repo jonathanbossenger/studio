@@ -1,14 +1,8 @@
-import {
-	Menu,
-	type MenuItemConstructorOptions,
-	app,
-	BrowserWindow,
-	autoUpdater,
-	shell,
-} from 'electron';
+import { Menu, type MenuItemConstructorOptions, app, BrowserWindow, autoUpdater } from 'electron';
 import { __ } from '@wordpress/i18n';
 import { openAboutWindow } from './about-menu/open-about-menu';
 import { BUG_REPORT_URL, FEATURE_REQUEST_URL, STUDIO_DOCS_URL } from './constants';
+import { shellOpenExternalWrapper } from './lib/shell-open-external-wrapper';
 import { promptWindowsSpeedUpSites } from './lib/windows-helpers';
 import { getMainWindow } from './main-window';
 import { isUpdateReadyToInstall, manualCheckForUpdates } from './updates';
@@ -181,7 +175,7 @@ function getAppMenu(
 				{
 					label: __( 'Studio Help' ),
 					click: () => {
-						shell.openExternal( STUDIO_DOCS_URL );
+						shellOpenExternalWrapper( STUDIO_DOCS_URL );
 					},
 				},
 				{ type: 'separator' },
@@ -199,13 +193,13 @@ function getAppMenu(
 				{
 					label: __( 'Report an Issue' ),
 					click: () => {
-						shell.openExternal( BUG_REPORT_URL );
+						shellOpenExternalWrapper( BUG_REPORT_URL );
 					},
 				},
 				{
 					label: __( 'Propose a Feature' ),
 					click: () => {
-						shell.openExternal( FEATURE_REQUEST_URL );
+						shellOpenExternalWrapper( FEATURE_REQUEST_URL );
 					},
 				},
 			],
