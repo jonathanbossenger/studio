@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, ExecOptions } from 'child_process';
 import crypto from 'crypto';
 import {
 	BrowserWindow,
@@ -863,50 +863,9 @@ export async function getThumbnailData( _event: IpcMainInvokeEvent, id: string )
 	return getImageData( path );
 }
 
-export function openTerminalAtPath(
-	_event: IpcMainInvokeEvent,
-	targetPath: string,
-	{ wpCliEnabled }: { wpCliEnabled?: boolean } = {}
-) {
-	return new Promise< void >( ( resolve, reject ) => {
-		const platform = process.platform;
-		const cliPath = nodePath.join( getResourcesPath(), 'bin' );
-
-		const exePath = app.getPath( 'exe' );
-		const appDirectory = app.getAppPath();
-		const appPath = ! app.isPackaged ? `${ exePath } ${ appDirectory }` : exePath;
-
-		let command: string;
-		if ( platform === 'win32' ) {
-			// Windows
-			if ( wpCliEnabled ) {
-				command = `start cmd /K "set PATH=${ cliPath };%PATH% && set STUDIO_APP_PATH=${ appPath } && cd /d ${ targetPath }"`;
-			} else {
-				command = `start cmd /K "cd /d ${ targetPath }"`;
-			}
-		} else if ( platform === 'darwin' ) {
-			// macOS
-			const loadWpCliCommand = `clear && export PATH=\\"${ cliPath }\\":$PATH && export STUDIO_APP_PATH=\\"${ appPath }\\" &&`;
-			const script = `
-			tell application "Terminal"
-				if not application "Terminal" is running then launch
-				do script "${ wpCliEnabled ? loadWpCliCommand : '' } cd ${ targetPath } && clear"
-				activate
-			end tell`;
-			command = `osascript -e '${ script }'`;
-		} else if ( platform === 'linux' ) {
-			// Linux
-			if ( wpCliEnabled ) {
-				command = `export PATH=${ cliPath }:$PATH && export STUDIO_APP_PATH="${ appPath }" && gnome-terminal -- bash -c 'cd ${ targetPath }; exec bash'`;
-			} else {
-				command = `gnome-terminal --working-directory=${ targetPath }`;
-			}
-		} else {
-			console.error( 'Unsupported platform:', platform );
-			return;
-		}
-
-		exec( command, ( error, _stdout, _stderr ) => {
+function promiseExec( command: string, options: ExecOptions = {} ): Promise< void > {
+	return new Promise( ( resolve, reject ) => {
+		exec( command, options, ( error ) => {
 			if ( error ) {
 				reject( error );
 				return;
@@ -914,6 +873,52 @@ export function openTerminalAtPath(
 			resolve();
 		} );
 	} );
+}
+
+export function openTerminalAtPath(
+	_event: IpcMainInvokeEvent,
+	targetPath: string,
+	{ wpCliEnabled }: { wpCliEnabled?: boolean } = {}
+) {
+	const platform = process.platform;
+	const cliPath = nodePath.join( getResourcesPath(), 'bin' );
+
+	const exePath = app.getPath( 'exe' );
+	const appDirectory = app.getAppPath();
+	const appPath = ! app.isPackaged ? `${ exePath } ${ appDirectory }` : exePath;
+
+	if ( platform === 'win32' ) {
+		const defaultShell = process.env.ComSpec || 'cmd.exe';
+		const env = wpCliEnabled
+			? { PATH: `${ cliPath };${ process.env.PATH }`, STUDIO_APP_PATH: appPath }
+			: {};
+
+		return promiseExec( `start "Command Prompt" ${ defaultShell }`, {
+			cwd: targetPath,
+			env: { ...process.env, ...env },
+		} );
+	} else if ( platform === 'darwin' ) {
+		const loadWpCliCommand = `clear && export PATH=\\"${ cliPath }\\":$PATH && export STUDIO_APP_PATH=\\"${ appPath }\\" &&`;
+		const osascript = `
+		tell application "Terminal"
+			if not application "Terminal" is running then launch
+			do script "${ wpCliEnabled ? loadWpCliCommand : '' } cd ${ targetPath } && clear"
+			activate
+		end tell`;
+
+		return promiseExec( `osascript -e '${ osascript }'` );
+	} else if ( platform === 'linux' ) {
+		if ( wpCliEnabled ) {
+			return promiseExec(
+				`export PATH=${ cliPath }:$PATH && export STUDIO_APP_PATH="${ appPath }" && gnome-terminal -- bash -c 'cd ${ targetPath }; exec bash'`
+			);
+		}
+
+		return promiseExec( `gnome-terminal --working-directory=${ targetPath }` );
+	} else {
+		console.error( 'Unsupported platform:', platform );
+		return;
+	}
 }
 
 export async function showMessageBox(
